@@ -1,0 +1,73 @@
+# ===========================
+# Java & Build
+# ===========================
+target/
+build/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+
+# ===========================
+# IntelliJ IDEA
+# ===========================
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# ===========================
+# VS Code (au cas où)
+# ===========================
+.vscode/
+
+# ===========================
+# Docker
+# ===========================
+*.env
+.env.local
+.env.*.local
+
+# ===========================
+# OS
+# ===========================
+.DS_Store
+Thumbs.db
+
+# ===========================
+# Secrets & Credentials
+# ===========================
+*.pem
+*.key
+*.p12
+*.jks
+application-local.yml
+application-local.properties
+
+# ===========================
+# Terraform
+# ===========================
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+override.tf
+override.tf.json
+
+# ===========================
+# Kubernetes
+# ===========================
+kubeconfig
+*.kubeconfig
