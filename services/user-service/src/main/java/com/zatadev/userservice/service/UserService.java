@@ -7,11 +7,14 @@ import com.zatadev.userservice.domain.entity.User;
 import com.zatadev.userservice.exception.ConflictException;
 import com.zatadev.userservice.exception.ResourceNotFoundException;
 import com.zatadev.userservice.repository.UserRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import java.util.UUID;
 
@@ -20,12 +23,22 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final MeterRegistry meterRegistry;
+    private Counter userCreationCounter;
+
+    @PostConstruct
+    public void initMetrics() {
+        userCreationCounter = Counter.builder("users.created.total")
+                .description("Total number of users created")
+                .register(meterRegistry);
+    }
 
     @Transactional(readOnly = true)
     public Page<UserResponse> findAll(Pageable pageable) {
         return userRepository.findAll(pageable)
                 .map(this::toResponse);
     }
+
 
     @Transactional(readOnly = true)
     public UserResponse findById(UUID id) {
@@ -51,6 +64,7 @@ public class UserService {
                 .active(true)
                 .build();
 
+        userCreationCounter.increment();
         return toResponse(userRepository.save(user));
     }
 
