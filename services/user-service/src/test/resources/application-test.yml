@@ -1,14 +1,14 @@
 spring:
-  datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
+  application:
+    name: user-service
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
+    show-sql: false
   flyway:
-    enabled: false
+    enabled: true
 
 security:
   jwt:
-    secret: test-secret-key-minimum-32-characters-long
+    secret: test-secret-key-minimum-32-characters-long-for-test
     expiration-ms: 900000
