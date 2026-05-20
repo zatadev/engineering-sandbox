@@ -1,3 +1,7 @@
+security:
+  jwt:
+    secret: ${JWT_SECRET:dev-secret-key-minimum-32-characters-long}
+    expiration-ms: ${JWT_EXPIRATION_MS:900000} # 15 minutes
 spring:
   application:
     name: user-service
@@ -16,14 +20,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-
-  security:
-    user:
-      name: ${SECURITY_USER:admin}
-      password: ${SECURITY_PASSWORD:admin}
-    jwt:
-      secret: ${JWT_SECRET:dev-secret-key-minimum-32-characters-long}
-      expiration-ms: ${JWT_EXPIRATION_MS:900000} # 15 minutes
 
 management:
   endpoints:
