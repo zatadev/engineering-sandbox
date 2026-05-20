@@ -7,39 +7,41 @@ import com.zatadev.userservice.domain.entity.User;
 import com.zatadev.userservice.exception.ConflictException;
 import com.zatadev.userservice.exception.ResourceNotFoundException;
 import com.zatadev.userservice.repository.UserRepository;
-import jakarta.annotation.PostConstruct;
+import io.micrometer.core.annotation.Counted;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
 
 import java.util.UUID;
 
+/**
+ * Service managing user lifecycle operations.
+ * <p>
+ * Password hashing is intentionally omitted in this stub implementation
+ * and will be handled by Keycloak in Phase 8.
+ */
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
-    private final MeterRegistry meterRegistry;
-    private Counter userCreationCounter;
 
-    @PostConstruct
-    public void initMetrics() {
-        userCreationCounter = Counter.builder("users.created.total")
-                .description("Total number of users created")
-                .register(meterRegistry);
-    }
-
+    /**
+     * Returns a paginated list of all users.
+     */
     @Transactional(readOnly = true)
     public Page<UserResponse> findAll(Pageable pageable) {
         return userRepository.findAll(pageable)
                 .map(this::toResponse);
     }
 
-
+    /**
+     * Returns a single user by ID.
+     *
+     * @throws ResourceNotFoundException if no user exists with the given ID
+     */
     @Transactional(readOnly = true)
     public UserResponse findById(UUID id) {
         return userRepository.findById(id)
@@ -47,6 +49,12 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }
 
+    /**
+     * Creates a new user.
+     *
+     * @throws ConflictException if username or email already exists
+     */
+    @Counted(value = "users.created.total", description = "Total number of users created")
     @Transactional
     public UserResponse create(CreateUserRequest request) {
         if (userRepository.existsByUsername(request.username())) {
@@ -64,10 +72,15 @@ public class UserService {
                 .active(true)
                 .build();
 
-        userCreationCounter.increment();
         return toResponse(userRepository.save(user));
     }
 
+    /**
+     * Updates username and email of an existing user.
+     *
+     * @throws ResourceNotFoundException if no user exists with the given ID
+     * @throws ConflictException if the new username or email already exists
+     */
     @Transactional
     public UserResponse update(UUID id, UpdateUserRequest request) {
         User user = userRepository.findById(id)
@@ -88,6 +101,11 @@ public class UserService {
         return toResponse(userRepository.save(user));
     }
 
+    /**
+     * Deletes a user by ID.
+     *
+     * @throws ResourceNotFoundException if no user exists with the given ID
+     */
     @Transactional
     public void delete(UUID id) {
         if (!userRepository.existsById(id)) {
