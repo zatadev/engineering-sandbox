@@ -23,16 +23,16 @@ clean commits, documented decisions, tested code, and observable systems.
 | Domain         | Technology                                      |
 |----------------|-------------------------------------------------|
 | Language       | Java 21                                         |
-| Framework      | Spring Boot 3                                   |
-| Build          | Maven / Gradle                                  |
-| Database       | PostgreSQL + JPA/Hibernate                      |
+| Framework      | Spring Boot 3.5.x                               |
+| Build          | Maven (multi-module monorepo)                   |
+| Database       | PostgreSQL + JPA/Hibernate + Flyway             |
 | Cache          | Redis                                           |
 | Security       | Spring Security, OAuth2/OIDC, JWT, Keycloak     |
 | Messaging      | RabbitMQ, Kafka                                 |
 | Containers     | Docker, Docker Compose                          |
 | Orchestration  | Kubernetes (minikube / kind)                    |
 | CI/CD          | GitLab CI/CD                                    |
-| Testing        | JUnit 5, Testcontainers                         |
+| Testing        | JUnit 5, Mockito, Testcontainers                |
 | Observability  | Prometheus, Grafana, OpenTelemetry, Loki        |
 | IaC            | Terraform                                       |
 | Cloud          | AWS (ECS, EKS, RDS, S3, IAM, VPC)              |
@@ -45,7 +45,7 @@ clean commits, documented decisions, tested code, and observable systems.
 ```text
 engineering-sandbox/
 ├── services/
-│   ├── user-service/          # Phase 1 — core REST service
+│   ├── user-service/          # Phase 1 — core REST service ✅
 │   ├── order-service/         # Phase 4 — event producer
 │   └── notification-service/  # Phase 4 — event consumer
 ├── infrastructure/
@@ -65,6 +65,7 @@ engineering-sandbox/
 │   └── gitlab-ci/             # Phase 3
 └── docs/
     ├── adr/                   # Architecture Decision Records
+    ├── postman/               # Postman collections per service
     ├── runbooks/              # Operational runbooks
     └── architecture/          # Diagrams, system design notes
 ```
@@ -76,8 +77,8 @@ engineering-sandbox/
 | Phase | Scope                        | Status         |
 |-------|------------------------------|----------------|
 | 0     | Repository Foundations       | ✅ Complete    |
-| 1     | Java Service (user-service)  | 🔜 Next        |
-| 2     | Docker Compose + Redis       | ⬜ Pending     |
+| 1     | Java Service (user-service)  | ✅ Complete    |
+| 2     | Docker Compose + Redis       | 🔜 Next        |
 | 3     | GitLab CI/CD                 | ⬜ Pending     |
 | 4     | Messaging (RabbitMQ + Kafka) | ⬜ Pending     |
 | 5     | Observability                | ⬜ Pending     |
@@ -87,19 +88,53 @@ engineering-sandbox/
 
 ---
 
+## Phase 1 — user-service
+
+Production-grade REST service built with Spring Boot 3.5 / Java 21.
+
+**What's included:**
+- REST CRUD API: `GET /api/v1/users`, `POST`, `PUT /{id}`, `DELETE /{id}`
+- JWT authentication stub (POST `/api/v1/auth/login`)
+- PostgreSQL + Flyway migrations
+- Spring Actuator: `/health`, `/info`, `/metrics`, `/actuator/prometheus`
+- Structured JSON logging with correlation IDs
+- Unit tests (JUnit 5 + Mockito) and integration tests (Testcontainers)
+- Multi-stage Dockerfile (JDK builder → JRE runtime, non-root user)
+- Postman collection with 25 automated tests
+
+**Run locally:**
+```bash
+# Start PostgreSQL
+docker run -d --name postgres-dev \
+  -e POSTGRES_DB=userdb -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
+  -p 5432:5432 postgres:16-alpine
+
+# Build and start user-service
+docker build -f services/user-service/Dockerfile -t user-service:latest .
+docker run -d --name user-service-dev \
+  -e DB_URL=jdbc:postgresql://host.docker.internal:5432/userdb \
+  -e SPRING_PROFILES_ACTIVE=dev \
+  -p 8080:8080 user-service:latest
+```
+
+See [`docs/runbooks/user-service-local.md`](./docs/runbooks/user-service-local.md) for full instructions.
+
+---
+
 ## Architectural Decisions
 
 All significant technical decisions are documented as ADRs in [`/docs/adr/`](./docs/adr/).
 
-| ADR     | Decision                                  |
-|---------|-------------------------------------------|
-| ADR-001 | GitLab CI/CD over GitHub Actions          |
-| ADR-002 | Monorepo structure                        |
-| ADR-003 | Java 21 + Spring Boot 3                   |
-| ADR-004 | PostgreSQL as primary datastore           |
-| ADR-005 | RabbitMQ before Kafka                     |
-| ADR-006 | Redis for caching                         |
-| ADR-007 | Keycloak as identity provider             |
+| ADR     | Decision                                        |
+|---------|-------------------------------------------------|
+| ADR-001 | GitLab CI/CD over GitHub Actions                |
+| ADR-002 | Monorepo structure                              |
+| ADR-003 | Java 21 + Spring Boot 3                         |
+| ADR-004 | PostgreSQL as primary datastore                 |
+| ADR-005 | RabbitMQ before Kafka                           |
+| ADR-006 | Redis for caching                               |
+| ADR-007 | Keycloak as identity provider                   |
+| ADR-008 | DTO separation and error handling strategy      |
 
 ---
 
@@ -124,8 +159,8 @@ test:     adding or updating tests
 ### Branch Strategy
 
 ```
-main        → stable, always deployable
-develop     → integration branch
+main        → stable, always deployable — never commit directly
+develop     → integration branch — never commit directly
 feature/*   → one feature per branch
 infra/*     → infrastructure changes
 ci/*        → pipeline changes
@@ -133,11 +168,18 @@ obs/*       → observability work
 docs/*      → documentation only
 ```
 
+### Pull Requests
+
+- Feature branches → `develop`: **Squash and merge** (one commit per PR)
+- `develop` → `main`: **Merge commit** at phase completion
+- Each phase is tagged: `v0.1.0`, `v0.2.0`, etc.
+
 ---
 
 ## Navigation
 
 - **Architecture decisions** → [`/docs/adr/`](./docs/adr/)
+- **Postman collections** → [`/docs/postman/`](./docs/postman/)
 - **Operational runbooks** → [`/docs/runbooks/`](./docs/runbooks/)
 - **Architecture diagrams** → [`/docs/architecture/`](./docs/architecture/)
 - **Contributing guidelines** → [`CONTRIBUTING.md`](./CONTRIBUTING.md)
