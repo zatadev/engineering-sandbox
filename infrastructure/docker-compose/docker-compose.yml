@@ -8,12 +8,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/userdb
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
-      JWT_SECRET: dev-secret-key-minimum-32-characters-long
-      JWT_EXPIRATION_MS: 900000
-      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
     restart: on-failure
     depends_on:
       - postgres
@@ -27,9 +27,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: userdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     networks:
       - sandbox-net
 
@@ -38,6 +38,8 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    # No authentication configured — intentional for local dev.
+    # Redis security (requirepass, TLS) will be addressed in Phase 8.
     networks:
       - sandbox-net
 
