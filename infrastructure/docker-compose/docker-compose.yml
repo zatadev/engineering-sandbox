@@ -1,0 +1,46 @@
+services:
+
+  user-service:
+    container_name: sandbox-user-service
+    build:
+      context: ../..
+      dockerfile: services/user-service/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/userdb
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: dev-secret-key-minimum-32-characters-long
+      JWT_EXPIRATION_MS: 900000
+      SPRING_PROFILES_ACTIVE: dev
+    restart: on-failure
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - sandbox-net
+
+  postgres:
+    container_name: sandbox-postgres
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    networks:
+      - sandbox-net
+
+  redis:
+    container_name: sandbox-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - sandbox-net
+
+networks:
+  sandbox-net:
+    driver: bridge
