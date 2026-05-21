@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: user-service
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+
+security:
+  jwt:
+    secret: test-secret-key-minimum-32-characters-long-for-test
+    expiration-ms: 900000
