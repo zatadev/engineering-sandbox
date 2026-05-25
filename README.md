@@ -50,7 +50,7 @@ engineering-sandbox/
 │   └── notification-service/  # Phase 4 — event consumer
 ├── infrastructure/
 │   ├── docker/                # Dockerfiles
-│   ├── docker-compose/        # Phase 2 — local environment
+│   ├── docker-compose/        # Phase 2 — local environment ✅
 │   ├── kubernetes/            # Phase 6 — K8s manifests
 │   └── terraform/             # Phase 7 — IaC
 ├── messaging/
@@ -72,19 +72,90 @@ engineering-sandbox/
 
 ---
 
+## Running Locally
+
+### Prerequisites
+- Docker Desktop installed and running
+- Git
+
+### Setup
+
+```bash
+# 1. Clone the repository
+git clone git@github.com:zatadev/engineering-sandbox.git
+cd engineering-sandbox
+
+# 2. Configure environment variables
+cp infrastructure/docker-compose/.env.example \
+   infrastructure/docker-compose/.env
+# Edit .env with your local values
+
+# 3. Start the stack
+docker compose -f infrastructure/docker-compose/docker-compose.yml up --build
+```
+
+### Verify everything is running
+
+```bash
+docker ps
+# Should show: sandbox-user-service, sandbox-postgres, sandbox-redis (all healthy)
+```
+
+Then hit the health endpoint:
+```bash
+curl http://localhost:8080/actuator/health
+# {"status":"UP"}
+```
+
+### Services
+
+| Service      | URL                         | Notes               |
+|--------------|-----------------------------|---------------------|
+| user-service | http://localhost:8080        | REST API            |
+| postgres     | localhost:5432 (db: userdb) | Credentials in .env |
+| redis        | localhost:6379              | No auth (local dev) |
+
+### Logs
+
+```bash
+# All services
+docker compose -f infrastructure/docker-compose/docker-compose.yml logs -f
+
+# Single service
+docker compose -f infrastructure/docker-compose/docker-compose.yml logs -f user-service
+```
+
+### Metrics
+
+Spring Actuator endpoints available at:
+
+| Endpoint               | Description       |
+|------------------------|-------------------|
+| `/actuator/health`     | Health status     |
+| `/actuator/info`       | Build info        |
+| `/actuator/metrics`    | Raw metrics       |
+| `/actuator/prometheus` | Prometheus scrape |
+
+### Full runbook
+
+See [`docs/runbooks/docker-compose-local.md`](docs/runbooks/docker-compose-local.md)
+for advanced usage: resetting the database, inspecting the Redis cache, troubleshooting.
+
+---
+
 ## Progression Plan
 
-| Phase | Scope                        | Status         |
-|-------|------------------------------|----------------|
-| 0     | Repository Foundations       | ✅ Complete    |
-| 1     | Java Service (user-service)  | ✅ Complete    |
-| 2     | Docker Compose + Redis       | 🔜 Next        |
-| 3     | GitLab CI/CD                 | ⬜ Pending     |
-| 4     | Messaging (RabbitMQ + Kafka) | ⬜ Pending     |
-| 5     | Observability                | ⬜ Pending     |
-| 6     | Kubernetes                   | ⬜ Pending     |
-| 7     | Terraform & AWS              | ⬜ Pending     |
-| 8     | Security & Final Polish      | ⬜ Pending     |
+| Phase | Scope                        | Status          |
+|-------|------------------------------|-----------------|
+| 0     | Repository Foundations       | ✅ Complete     |
+| 1     | Java Service (user-service)  | ✅ Complete     |
+| 2     | Docker Compose + Redis       | 🔧 In Progress  |
+| 3     | GitLab CI/CD                 | ⬜ Pending      |
+| 4     | Messaging (RabbitMQ + Kafka) | ⬜ Pending      |
+| 5     | Observability                | ⬜ Pending      |
+| 6     | Kubernetes                   | ⬜ Pending      |
+| 7     | Terraform & AWS              | ⬜ Pending      |
+| 8     | Security & Final Polish      | ⬜ Pending      |
 
 ---
 
@@ -96,28 +167,18 @@ Production-grade REST service built with Spring Boot 3.5 / Java 21.
 - REST CRUD API: `GET /api/v1/users`, `POST`, `PUT /{id}`, `DELETE /{id}`
 - JWT authentication stub (POST `/api/v1/auth/login`)
 - PostgreSQL + Flyway migrations
+- Redis caching (`@Cacheable` on reads, `@CacheEvict` on writes)
 - Spring Actuator: `/health`, `/info`, `/metrics`, `/actuator/prometheus`
 - Structured JSON logging with correlation IDs
 - Unit tests (JUnit 5 + Mockito) and integration tests (Testcontainers)
 - Multi-stage Dockerfile (JDK builder → JRE runtime, non-root user)
 - Postman collection with 25 automated tests
 
-**Run locally:**
-```bash
-# Start PostgreSQL
-docker run -d --name postgres-dev \
-  -e POSTGRES_DB=userdb -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
-  -p 5432:5432 postgres:16-alpine
+> **Note:** The recommended way to run the full stack is via Docker Compose.
+> See the [Running Locally](#running-locally) section above.
 
-# Build and start user-service
-docker build -f services/user-service/Dockerfile -t user-service:latest .
-docker run -d --name user-service-dev \
-  -e DB_URL=jdbc:postgresql://host.docker.internal:5432/userdb \
-  -e SPRING_PROFILES_ACTIVE=dev \
-  -p 8080:8080 user-service:latest
-```
-
-See [`docs/runbooks/user-service-local.md`](./docs/runbooks/user-service-local.md) for full instructions.
+See [`docs/runbooks/user-service-local.md`](./docs/runbooks/user-service-local.md)
+for the standalone `docker run` approach (Phase 1 reference).
 
 ---
 
@@ -135,6 +196,7 @@ All significant technical decisions are documented as ADRs in [`/docs/adr/`](./d
 | ADR-006 | Redis for caching                               |
 | ADR-007 | Keycloak as identity provider                   |
 | ADR-008 | DTO separation and error handling strategy      |
+| ADR-009 | Secrets management strategy                     |
 
 ---
 
