@@ -54,3 +54,29 @@ docker compose -f infrastructure/docker-compose/docker-compose.yml logs -f user-
 Import the Postman collection: `docs/postman/user-service.postman_collection.json`
 
 See `docs/runbooks/user-service-local.md` for endpoint details and test order.
+
+## Inspecting the Redis cache
+
+Connect to Redis CLI:
+```bash
+docker exec -it sandbox-redis redis-cli
+```
+
+Useful commands:
+```bash
+# List all cached keys
+KEYS *
+
+# Get a cached value
+GET "users::<uuid>"
+
+# Flush all cache entries (useful when testing or after config changes)
+FLUSHALL
+```
+
+Cache behavior in user-service:
+- `GET /api/v1/users/{id}` → cache miss on first call, cache hit on subsequent calls
+- `PUT /api/v1/users/{id}` → evicts the cache entry for that id
+- `DELETE /api/v1/users/{id}` → evicts the cache entry for that id
+- `GET /api/v1/users` (list) → not cached (intentional, see ADR-009)
+- TTL: 10 minutes
