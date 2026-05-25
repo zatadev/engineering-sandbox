@@ -149,8 +149,8 @@ for advanced usage: resetting the database, inspecting the Redis cache, troubles
 |-------|------------------------------|-----------------|
 | 0     | Repository Foundations       | ✅ Complete     |
 | 1     | Java Service (user-service)  | ✅ Complete     |
-| 2     | Docker Compose + Redis       | 🔧 In Progress  |
-| 3     | GitLab CI/CD                 | ⬜ Pending      |
+| 2     | Docker Compose + Redis       | ✅ Complete     |
+| 3     | GitLab CI/CD                 | 🔧 In Progress  |
 | 4     | Messaging (RabbitMQ + Kafka) | ⬜ Pending      |
 | 5     | Observability                | ⬜ Pending      |
 | 6     | Kubernetes                   | ⬜ Pending      |
