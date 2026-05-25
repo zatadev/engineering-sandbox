@@ -55,6 +55,7 @@ Thumbs.db
 *.jks
 application-local.yml
 application-local.properties
+infrastructure/docker-compose/.env
 
 # ===========================
 # Terraform

@@ -1,5 +1,6 @@
 package com.zatadev.userservice.service;
 
+import com.zatadev.userservice.config.CacheConfig;
 import com.zatadev.userservice.domain.dto.CreateUserRequest;
 import com.zatadev.userservice.domain.dto.UpdateUserRequest;
 import com.zatadev.userservice.domain.dto.UserResponse;
@@ -9,6 +10,9 @@ import com.zatadev.userservice.exception.ResourceNotFoundException;
 import com.zatadev.userservice.repository.UserRepository;
 import io.micrometer.core.annotation.Counted;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,6 +26,7 @@ import java.util.UUID;
  * Password hashing is intentionally omitted in this stub implementation
  * and will be handled by Keycloak in Phase 8.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -43,7 +48,9 @@ public class UserService {
      * @throws ResourceNotFoundException if no user exists with the given ID
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.USERS_CACHE, key = "#id")
     public UserResponse findById(UUID id) {
+        log.debug("Cache miss — fetching user {} from database", id);
         return userRepository.findById(id)
                 .map(this::toResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -82,7 +89,9 @@ public class UserService {
      * @throws ConflictException if the new username or email already exists
      */
     @Transactional
+    @CacheEvict(value = CacheConfig.USERS_CACHE, key = "#id")
     public UserResponse update(UUID id, UpdateUserRequest request) {
+        log.debug("Cache evict — invalidating user {} after update", id);
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
@@ -107,7 +116,9 @@ public class UserService {
      * @throws ResourceNotFoundException if no user exists with the given ID
      */
     @Transactional
+    @CacheEvict(value = CacheConfig.USERS_CACHE, key = "#id")
     public void delete(UUID id) {
+        log.debug("Cache evict — invalidating user {} after delete", id);
         if (!userRepository.existsById(id)) {
             throw new ResourceNotFoundException("User not found with id: " + id);
         }
