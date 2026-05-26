@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────
+# Stages — ordre d'exécution du pipeline
+# ─────────────────────────────────────────
+stages:
+  - build
+  - test
+
+# ─────────────────────────────────────────
+# Variables globales
+# ─────────────────────────────────────────
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=${CI_PROJECT_DIR}/.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --no-transfer-progress"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
+
+# ─────────────────────────────────────────
+# Cache Maven — évite de retélécharger
+# les dépendances à chaque pipeline
+# ─────────────────────────────────────────
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - .m2/repository/
+
+# ─────────────────────────────────────────
+# Stage : build
+# ─────────────────────────────────────────
+build:
+  stage: build
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - mvn $MAVEN_CLI_OPTS clean package -DskipTests
+  artifacts:
+    paths:
+      - services/user-service/target/*.jar
+    expire_in: 1 hour
+
+# ─────────────────────────────────────────
+# Stage : test
+# Testcontainers nécessite Docker
+# On utilise le service DinD (Docker-in-Docker)
+# ─────────────────────────────────────────
+test:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+  script:
+    - mvn $MAVEN_CLI_OPTS verify
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - services/user-service/target/surefire-reports/TEST-*.xml
+        - services/user-service/target/failsafe-reports/IT-*.xml
+    expire_in: 1 week
