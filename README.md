@@ -1,5 +1,7 @@
 # Engineering Sandbox
 
+[![Pipeline](https://gitlab.com/zatadev/engineering-sandbox/badges/develop/pipeline.svg)](https://gitlab.com/zatadev/engineering-sandbox/-/commits/develop)
+
 A structured, public, production-grade repository built for hands-on mastery of
 modern cloud-native engineering — and as a credible artifact for senior/lead technical interviews.
 
