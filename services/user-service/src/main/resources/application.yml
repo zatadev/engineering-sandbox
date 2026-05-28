@@ -41,7 +41,7 @@ management:
     health:
       show-details: always
     info:
-      enabled: true
+      access: read_only
   info:
     env:
       enabled: true
@@ -49,11 +49,13 @@ management:
       enabled: true
     build:
       enabled: true
+    git:
+      mode: simple
 
 info:
   app:
     name: ${spring.application.name}
-    version: 0.0.1-SNAPSHOT
+    version: @project.version@
     description: Production-grade REST service — Cloud-Native Engineering Sandbox
 
 logging:
