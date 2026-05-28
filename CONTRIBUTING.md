@@ -58,6 +58,41 @@ docs/*      → documentation only
 
 ---
 
+## Versioning Strategy
+
+This project follows [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH).
+
+- `MAJOR` — breaking changes
+- `MINOR` — new features, backward compatible
+- `PATCH` — bug fixes, backward compatible
+
+The project is in active development. All versions are `0.x.x` until the sandbox
+is considered stable (after Phase 8).
+
+### Phase tags
+
+Each phase completion is tagged on `main`:
+
+| Tag    | Phase                              |
+|--------|------------------------------------|
+| v0.1.0 | Phase 0 — Repository Foundations  |
+| v0.2.0 | Phase 1 — Java Service            |
+| v0.3.0 | Phase 2 — Docker Compose          |
+| v0.4.0 | Phase 3 — GitLab CI/CD            |
+
+### Release process
+
+1. All issues for the phase are Done in Linear
+2. PR `develop` → `main` opened and merged (Merge commit)
+3. Tag created immediately after merge:
+```bash
+   git tag v0.X.0 -m "Phase N complete"
+   git push origin v0.X.0
+```
+4. Docker image automatically tagged and pushed by the CI/CD pipeline
+
+---
+
 ## Commit Messages
 
 This project follows [Conventional Commits](https://www.conventionalcommits.org/).
