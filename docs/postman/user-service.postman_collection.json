@@ -231,10 +231,8 @@
                   "pm.test('Error response format is correct', () => {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body).to.have.property('status');",
-                  "    pm.expect(body).to.have.property('error');",
-                  "    pm.expect(body).to.have.property('message');",
-                  "    pm.expect(body).to.have.property('path');",
-                  "    pm.expect(body).to.have.property('timestamp');",
+                  "    pm.expect(body).to.have.property('title');",
+                  "    pm.expect(body).to.have.property('detail');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -283,7 +281,7 @@
                   "pm.test('Error message is present', () => {",
                   "    const body = pm.response.json();",
                   "    pm.expect(body.status).to.equal(400);",
-                  "    pm.expect(body.message).to.be.a('string');",
+                  "    pm.expect(body.detail).to.be.a('string');",
                   "});"
                 ],
                 "type": "text/javascript"

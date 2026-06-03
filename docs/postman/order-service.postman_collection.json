@@ -1,0 +1,547 @@
+{
+  "info": {
+    "_postman_id": "d4e5f6a7-b8c9-0d1e-2f3a-456789012345",
+    "name": "order-service",
+    "description": "Cloud-Native Engineering Sandbox — Phase 4\norder-service REST API collection.\n\nUsage:\n1. Set `baseUrl` (default: http://localhost:8081) and `userServiceUrl` (default: http://localhost:8080)\n2. Run `Auth / Get token` first — the JWT is automatically stored\n3. Run requests in folder order: Auth → Orders → Actuator\n\nNote: order-service validates JWTs issued by user-service (shared secret). There is no local login endpoint.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get token (via user-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has accessToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('accessToken');",
+                  "    pm.expect(body.tokenType).to.equal('Bearer');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('token', body.accessToken);",
+                  "    console.log('Token stored:', body.accessToken.substring(0, 20) + '...');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{userServiceUrl}}/api/v1/auth/login",
+              "host": ["{{userServiceUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Authenticates against user-service and stores the JWT in `token`.\norder-service verifies this token with the shared JWT secret."
+          },
+          "response": []
+        },
+        {
+          "name": "GET orders — unauthenticated (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "Attempts to list orders without a token. Expects 401 Unauthorized."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "POST create order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response has order fields', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('customerId');",
+                  "    pm.expect(body).to.have.property('productId');",
+                  "    pm.expect(body).to.have.property('quantity');",
+                  "    pm.expect(body).to.have.property('totalPrice');",
+                  "    pm.expect(body).to.have.property('status');",
+                  "    pm.expect(body).to.have.property('createdAt');",
+                  "    pm.expect(body).to.have.property('updatedAt');",
+                  "});",
+                  "pm.test('Status is PENDING', () => {",
+                  "    pm.expect(pm.response.json().status).to.equal('PENDING');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('orderId', body.id);",
+                  "    console.log('Order ID stored:', body.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 2,\n  \"totalPrice\": 49.99\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "Creates a new order with status PENDING. Stores the returned `id` in `orderId`."
+          },
+          "response": []
+        },
+        {
+          "name": "POST create order — validation error (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('ProblemDetail format', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.equal(400);",
+                  "    pm.expect(body.title).to.equal('Validation Error');",
+                  "    pm.expect(body.detail).to.be.a('string').and.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 0,\n  \"totalPrice\": -1.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "quantity=0 and totalPrice=-1 both fail Bean Validation. Expects 400 with ProblemDetail."
+          },
+          "response": []
+        },
+        {
+          "name": "POST create order — missing required fields (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Detail mentions missing fields', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.equal(400);",
+                  "    pm.expect(body.title).to.equal('Validation Error');",
+                  "    pm.expect(body.detail).to.include('customerId');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 1,\n  \"totalPrice\": 9.99\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "Omits customerId and productId. Expects 400 with validation detail naming missing fields."
+          },
+          "response": []
+        },
+        {
+          "name": "GET all orders (paginated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is paginated', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('content');",
+                  "    pm.expect(body).to.have.property('totalElements');",
+                  "    pm.expect(body).to.have.property('totalPages');",
+                  "    pm.expect(body.content).to.be.an('array');",
+                  "});",
+                  "pm.test('At least one order exists', () => {",
+                  "    pm.expect(pm.response.json().totalElements).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders?page=0&size=20&sort=createdAt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "orders"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "sort", "value": "createdAt" }
+              ]
+            },
+            "description": "Returns a paginated list of orders sorted by createdAt descending."
+          },
+          "response": []
+        },
+        {
+          "name": "GET order by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response matches stored orderId', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.equal(pm.collectionVariables.get('orderId'));",
+                  "    pm.expect(body.status).to.equal('PENDING');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "orders", "{{orderId}}"]
+            },
+            "description": "Retrieves the order created in the POST step."
+          },
+          "response": []
+        },
+        {
+          "name": "GET order by ID — not found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('ProblemDetail format', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.equal(404);",
+                  "    pm.expect(body.title).to.equal('Resource Not Found');",
+                  "    pm.expect(body.detail).to.include('00000000-0000-0000-0000-000000000000');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "orders", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Uses the nil UUID which will never match a stored order."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE cancel order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Order is now CANCELLED', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.equal(pm.collectionVariables.get('orderId'));",
+                  "    pm.expect(body.status).to.equal('CANCELLED');",
+                  "    pm.expect(body.message).to.equal('Order successfully cancelled');",
+                  "    pm.expect(body).to.have.property('updatedAt');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "orders", "{{orderId}}"]
+            },
+            "description": "Cancels the PENDING order. Returns 200 with CancelOrderResponse (not 204)."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE cancel order — already cancelled (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('ProblemDetail format', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.equal(422);",
+                  "    pm.expect(body.title).to.equal('Order Cancellation Error');",
+                  "    pm.expect(body.detail).to.include('already cancelled');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "orders", "{{orderId}}"]
+            },
+            "description": "Attempts to cancel the same order a second time. The order is already CANCELLED → 422 Unprocessable Entity."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE cancel order — not found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('ProblemDetail format', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.equal(404);",
+                  "    pm.expect(body.title).to.equal('Resource Not Found');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "orders", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Attempts to cancel a non-existent order. Expects 404."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Actuator",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Service is UP', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.equal('UP');",
+                  "});",
+                  "pm.test('DB component is UP', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.components.db.status).to.equal('UP');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Public endpoint — no authentication required."
+          },
+          "response": []
+        },
+        {
+          "name": "Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('App info present', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.app.name).to.equal('order-service');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/info",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "info"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Prometheus metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JVM metrics present', () => {",
+                  "    pm.expect(pm.response.text()).to.include('jvm_memory_used_bytes');",
+                  "});",
+                  "pm.test('Order controller metrics present', () => {",
+                  "    pm.expect(pm.response.text()).to.include('order_controller_create');",
+                  "});",
+                  "pm.test('Order created counter present', () => {",
+                  "    pm.expect(pm.response.text()).to.include('order_service_total');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/prometheus",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "prometheus"]
+            },
+            "description": "Prometheus scrape endpoint. Run after creating at least one order to see order-specific metrics."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "userServiceUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "customerId",
+      "value": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+    },
+    {
+      "key": "productId",
+      "value": "550e8400-e29b-41d4-a716-446655440000"
+    }
+  ]
+}

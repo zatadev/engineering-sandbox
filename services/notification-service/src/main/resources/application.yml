@@ -1,0 +1,45 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: notification-service
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    info:
+      git:
+        mode: full
+      access: read_only
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+    build:
+      enabled: true
+    git:
+      mode: simple
+
+info:
+  app:
+    name: ${spring.application.name}
+    version: @project.version@
+    description: Notification Service - RabbitMQ event consumer
+
+logging:
+  level:
+    root: INFO
+    com.zatadev: DEBUG

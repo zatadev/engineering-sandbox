@@ -21,7 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -60,8 +60,8 @@ class UserControllerTest {
                 .email("zata@dev.com")
                 .role("USER")
                 .active(true)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
     }
 
@@ -109,7 +109,7 @@ class UserControllerTest {
             mockMvc.perform(get("/api/v1/users/{id}", testId))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status").value(404))
-                    .andExpect(jsonPath("$.message").exists());
+                    .andExpect(jsonPath("$.detail").exists());
         }
     }
 

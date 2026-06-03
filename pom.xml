@@ -21,6 +21,8 @@
 
     <modules>
         <module>services/user-service</module>
+        <module>services/order-service</module>
+        <module>services/notification-service</module>
     </modules>
 
     <properties>

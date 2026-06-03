@@ -1,0 +1,114 @@
+{
+  "info": {
+    "_postman_id": "e5f6a7b8-c9d0-1e2f-3a4b-567890123456",
+    "name": "notification-service",
+    "description": "Cloud-Native Engineering Sandbox — Phase 4\nnotification-service observability collection.\n\nThis service is a pure RabbitMQ consumer — it exposes no business REST endpoints.\nAll requests here cover actuator health (including RabbitMQ liveness) and metrics.\n\nRabbitMQ management UI: http://localhost:15672 (sandbox / sandboxrabbitmq)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Actuator",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Service is UP', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.equal('UP');",
+                  "});",
+                  "pm.test('RabbitMQ component is UP', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.components).to.have.property('rabbit');",
+                  "    pm.expect(body.components.rabbit.status).to.equal('UP');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Public endpoint. Checks service liveness and RabbitMQ broker connectivity."
+          },
+          "response": []
+        },
+        {
+          "name": "Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('App info present', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.app.name).to.equal('notification-service');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/info",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "info"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Prometheus metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JVM metrics present', () => {",
+                  "    pm.expect(pm.response.text()).to.include('jvm_memory_used_bytes');",
+                  "});",
+                  "pm.test('RabbitMQ connection metrics present', () => {",
+                  "    pm.expect(pm.response.text()).to.include('rabbitmq');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/prometheus",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "prometheus"]
+            },
+            "description": "Prometheus scrape endpoint. RabbitMQ connection pool metrics appear after the first message is consumed."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8082"
+    }
+  ]
+}
