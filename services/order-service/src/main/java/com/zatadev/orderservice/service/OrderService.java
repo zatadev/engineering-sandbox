@@ -19,6 +19,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.MDC;
+import org.springframework.amqp.core.MessagePostProcessor;
 
 import java.util.UUID;
 
@@ -63,10 +65,22 @@ public class OrderService {
 
         // Published inside @Transactional — Outbox Pattern needed before production.
         OrderCreatedEvent event = OrderCreatedEvent.from(saved);
+
+        // Propagate correlationId through message headers
+        String correlationId = MDC.get("correlationId");
+        MessagePostProcessor messagePostProcessor = message -> {
+            if (correlationId != null) {
+                message.getMessageProperties()
+                        .setHeader("X-Correlation-ID", correlationId);
+            }
+            return message;
+        };
+
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.EXCHANGE,
                 RabbitMQConfig.ROUTING_KEY_ORDER_CREATED,
-                event
+                event,
+                messagePostProcessor
         );
         log.info("OrderCreatedEvent published for orderId={}", saved.getId());
 

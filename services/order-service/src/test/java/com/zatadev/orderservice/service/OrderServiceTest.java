@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -99,7 +100,7 @@ class OrderServiceTest {
 
         assertThat(result.status()).isEqualTo(OrderStatus.PENDING);
         verify(orderRepository, times(1)).save(any());
-        verify(rabbitTemplate, times(1)).convertAndSend(anyString(), anyString(), any(Object.class));
+        verify(rabbitTemplate, times(1)).convertAndSend(anyString(), anyString(), any(Object.class), any(MessagePostProcessor.class));
     }
 
     @Test
