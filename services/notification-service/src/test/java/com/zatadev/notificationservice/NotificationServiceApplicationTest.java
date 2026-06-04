@@ -1,12 +1,8 @@
 package com.zatadev.notificationservice;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest
-@ActiveProfiles("test")
-class NotificationServiceApplicationTest {
+class NotificationServiceApplicationTest extends AbstractIntegrationTest {
 
     @Test
     void contextLoads() {
