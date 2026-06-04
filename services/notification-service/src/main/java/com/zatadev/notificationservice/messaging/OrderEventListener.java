@@ -1,13 +1,17 @@
 package com.zatadev.notificationservice.messaging;
 
 import com.zatadev.notificationservice.config.RabbitMQConfig;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class OrderEventListener {
+
+    private final IdempotencyService idempotencyService;
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE_NOTIFICATION_ORDER_CREATED)
     public void handleOrderCreated(OrderCreatedEvent event) {
@@ -16,13 +20,14 @@ public class OrderEventListener {
                 event.orderId(),
                 event.customerId());
 
-        // Simulate notification dispatch
+        if (idempotencyService.isDuplicate(event.eventId())) {
+            return;
+        }
         sendNotification(event);
     }
 
     private void sendNotification(OrderCreatedEvent event) {
-        // STUB — simulate email/SMS notification
-        // Real implementation (SendGrid, Twilio, etc.) out of scope for this sandbox
+        // Stub — real dispatch (SendGrid, Twilio, etc.) is out of scope for this sandbox
         log.info("Notification sent to customerId={} for orderId={} — quantity={}, total={}",
                 event.customerId(),
                 event.orderId(),
