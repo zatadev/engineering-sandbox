@@ -1,5 +1,6 @@
 package com.zatadev.orderservice.service;
 
+import com.zatadev.orderservice.config.RabbitMQConfig;
 import com.zatadev.orderservice.domain.dto.CancelOrderResponse;
 import com.zatadev.orderservice.domain.dto.CreateOrderRequest;
 import com.zatadev.orderservice.domain.dto.OrderResponse;
@@ -7,11 +8,13 @@ import com.zatadev.orderservice.domain.entity.Order;
 import com.zatadev.orderservice.domain.entity.OrderStatus;
 import com.zatadev.orderservice.exception.OrderCancellationException;
 import com.zatadev.orderservice.exception.ResourceNotFoundException;
+import com.zatadev.orderservice.messaging.OrderCreatedEvent;
 import com.zatadev.orderservice.repository.OrderRepository;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,6 +28,7 @@ import java.util.UUID;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final RabbitTemplate rabbitTemplate;
 
     @Timed(value = "order.service.findAll", description = "Paginated order listing")
     @Transactional(readOnly = true)
@@ -56,6 +60,16 @@ public class OrderService {
                 .build();
         Order saved = orderRepository.save(order);
         log.info("Order created id={}", saved.getId());
+
+        // Published inside @Transactional — Outbox Pattern needed before production.
+        OrderCreatedEvent event = OrderCreatedEvent.from(saved);
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE,
+                RabbitMQConfig.ROUTING_KEY_ORDER_CREATED,
+                event
+        );
+        log.info("OrderCreatedEvent published for orderId={}", saved.getId());
+
         return OrderResponse.from(saved);
     }
 
