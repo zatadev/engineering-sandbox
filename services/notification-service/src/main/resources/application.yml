@@ -25,6 +25,18 @@ spring:
           multiplier: 2.0
           max-interval: 10000
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: notification-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.zatadev.orderservice.messaging,com.zatadev.notificationservice.messaging"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.zatadev.notificationservice.messaging.OrderCreatedEvent
 management:
   endpoints:
     web:

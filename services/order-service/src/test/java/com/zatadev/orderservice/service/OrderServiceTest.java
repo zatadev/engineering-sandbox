@@ -5,6 +5,7 @@ import com.zatadev.orderservice.domain.entity.Order;
 import com.zatadev.orderservice.domain.entity.OrderStatus;
 import com.zatadev.orderservice.exception.OrderCancellationException;
 import com.zatadev.orderservice.exception.ResourceNotFoundException;
+import com.zatadev.orderservice.messaging.KafkaOrderEventPublisher;
 import com.zatadev.orderservice.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,9 @@ class OrderServiceTest {
 
     @Mock
     private RabbitTemplate rabbitTemplate;
+
+    @Mock
+    private KafkaOrderEventPublisher kafkaOrderEventPublisher;
 
     @InjectMocks
     private OrderService orderService;

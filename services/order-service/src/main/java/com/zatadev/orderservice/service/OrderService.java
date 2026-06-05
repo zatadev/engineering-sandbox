@@ -8,6 +8,7 @@ import com.zatadev.orderservice.domain.entity.Order;
 import com.zatadev.orderservice.domain.entity.OrderStatus;
 import com.zatadev.orderservice.exception.OrderCancellationException;
 import com.zatadev.orderservice.exception.ResourceNotFoundException;
+import com.zatadev.orderservice.messaging.KafkaOrderEventPublisher;
 import com.zatadev.orderservice.messaging.OrderCreatedEvent;
 import com.zatadev.orderservice.repository.OrderRepository;
 import io.micrometer.core.annotation.Counted;
@@ -31,6 +32,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final RabbitTemplate rabbitTemplate;
+    private final KafkaOrderEventPublisher kafkaOrderEventPublisher;
 
     @Timed(value = "order.service.findAll", description = "Paginated order listing")
     @Transactional(readOnly = true)
@@ -66,6 +68,7 @@ public class OrderService {
         // Published inside @Transactional — Outbox Pattern needed before production.
         OrderCreatedEvent event = OrderCreatedEvent.from(saved);
 
+        // Publish via RabbitMQ
         // Propagate correlationId through message headers
         String correlationId = MDC.get("correlationId");
         MessagePostProcessor messagePostProcessor = message -> {
@@ -75,14 +78,16 @@ public class OrderService {
             }
             return message;
         };
-
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.EXCHANGE,
                 RabbitMQConfig.ROUTING_KEY_ORDER_CREATED,
                 event,
                 messagePostProcessor
         );
-        log.info("OrderCreatedEvent published for orderId={}", saved.getId());
+        log.info("OrderCreatedEvent published to RabbitMQ: orderId={}", saved.getId());
+
+        // Publish via Kafka
+        kafkaOrderEventPublisher.publishOrderCreated(event);
 
         return OrderResponse.from(saved);
     }
