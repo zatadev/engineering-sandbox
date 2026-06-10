@@ -85,6 +85,13 @@
             <version>8.0</version>
         </dependency>
 
+        <!-- ===== Order contracts ===== -->
+        <dependency>
+            <groupId>com.zatadev</groupId>
+            <artifactId>order-contracts</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <!-- ===== Messaging ===== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

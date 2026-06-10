@@ -27,6 +27,13 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- ===== Order contracts ===== -->
+        <dependency>
+            <groupId>com.zatadev</groupId>
+            <artifactId>order-contracts</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <!-- ===== Messaging ===== -->
         <!-- RabbitMQ -->
         <dependency>

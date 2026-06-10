@@ -496,7 +496,7 @@
                   "    pm.expect(pm.response.text()).to.include('order_controller_create');",
                   "});",
                   "pm.test('Order created counter present', () => {",
-                  "    pm.expect(pm.response.text()).to.include('order_service_total');",
+                  "    pm.expect(pm.response.text()).to.include('order_service_registrations_total');",
                   "});"
                 ],
                 "type": "text/javascript"

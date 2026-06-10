@@ -61,7 +61,7 @@ public class UserService {
      *
      * @throws ConflictException if username or email already exists
      */
-    @Counted(value = "users.created.total", description = "Total number of users created")
+    @Counted(value = "users.registrations", description = "Total number of users created")
     @Transactional
     public UserResponse create(CreateUserRequest request) {
         if (userRepository.existsByUsername(request.username())) {

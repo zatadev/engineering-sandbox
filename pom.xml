@@ -20,6 +20,8 @@
     <description>Cloud-Native Engineering Sandbox</description>
 
     <modules>
+        <module>services/common</module>
+        <module>services/order-contracts</module>
         <module>services/user-service</module>
         <module>services/order-service</module>
         <module>services/notification-service</module>

@@ -1,5 +1,6 @@
 package com.zatadev.orderservice.messaging;
 
+import com.zatadev.order.contracts.OrderCreatedEvent;
 import com.zatadev.orderservice.config.KafkaConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

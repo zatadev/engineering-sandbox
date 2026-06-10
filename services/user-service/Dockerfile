@@ -1,29 +1,23 @@
 # ============================================================
 # Stage 1 — Builder
 # ============================================================
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM maven:3.9.15-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /workspace
 
-# Copy Maven wrapper first (no source dependency)
-COPY services/user-service/mvnw services/user-service/mvnw
-COPY services/user-service/.mvn services/user-service/.mvn
-RUN chmod +x services/user-service/mvnw
-
-# Install parent POM non-recursively (cache layer)
+# Install root POM (no recursive — just registers the parent)
 COPY pom.xml pom.xml
-RUN --mount=type=cache,target=/root/.m2 \
-    services/user-service/mvnw -f pom.xml install -N -B
+RUN mvn -f pom.xml install -N -B
 
-# Resolve service dependencies (cache layer)
+# Install common
+COPY services/common/pom.xml services/common/pom.xml
+COPY services/common/src services/common/src
+RUN mvn -f services/common/pom.xml install -DskipTests -B
+
+# Build user-service
 COPY services/user-service/pom.xml services/user-service/pom.xml
-RUN --mount=type=cache,target=/root/.m2 \
-    services/user-service/mvnw -f services/user-service/pom.xml dependency:go-offline -B
-
-# Copy source and build
 COPY services/user-service/src services/user-service/src
-RUN --mount=type=cache,target=/root/.m2 \
-    services/user-service/mvnw -f services/user-service/pom.xml package -DskipTests -B
+RUN mvn -f services/user-service/pom.xml package -DskipTests -B
 
 # ============================================================
 # Stage 2 — Runtime

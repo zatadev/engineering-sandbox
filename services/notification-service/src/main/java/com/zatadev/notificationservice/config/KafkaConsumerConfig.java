@@ -1,6 +1,6 @@
 package com.zatadev.notificationservice.config;
 
-import com.zatadev.notificationservice.messaging.OrderCreatedEvent;
+import com.zatadev.order.contracts.OrderCreatedEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;

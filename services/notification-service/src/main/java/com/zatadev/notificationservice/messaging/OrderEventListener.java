@@ -1,5 +1,6 @@
 package com.zatadev.notificationservice.messaging;
 
+import com.zatadev.order.contracts.OrderCreatedEvent;
 import com.zatadev.notificationservice.config.RabbitMQConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

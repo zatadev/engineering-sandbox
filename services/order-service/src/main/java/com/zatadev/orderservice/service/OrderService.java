@@ -8,8 +8,8 @@ import com.zatadev.orderservice.domain.entity.Order;
 import com.zatadev.orderservice.domain.entity.OrderStatus;
 import com.zatadev.orderservice.exception.OrderCancellationException;
 import com.zatadev.orderservice.exception.ResourceNotFoundException;
+import com.zatadev.order.contracts.OrderCreatedEvent;
 import com.zatadev.orderservice.messaging.KafkaOrderEventPublisher;
-import com.zatadev.orderservice.messaging.OrderCreatedEvent;
 import com.zatadev.orderservice.repository.OrderRepository;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.MDC;
 import org.springframework.amqp.core.MessagePostProcessor;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Slf4j
@@ -51,7 +52,7 @@ public class OrderService {
     }
 
     @Timed(value = "order.service.create", description = "Order creation")
-    @Counted(value = "order.service.created.total", description = "Orders created")
+    @Counted(value = "order.service.registrations", description = "Orders created")
     @Transactional
     public OrderResponse create(CreateOrderRequest request) {
         log.info("Creating order for customerId={}, productId={}", request.customerId(), request.productId());
@@ -66,7 +67,15 @@ public class OrderService {
         log.info("Order created id={}", saved.getId());
 
         // Published inside @Transactional — Outbox Pattern needed before production.
-        OrderCreatedEvent event = OrderCreatedEvent.from(saved);
+        OrderCreatedEvent event = new OrderCreatedEvent(
+                UUID.randomUUID(),
+                saved.getId(),
+                saved.getCustomerId(),
+                saved.getProductId(),
+                saved.getQuantity(),
+                saved.getTotalPrice(),
+                Instant.now()
+        );
 
         // Publish via RabbitMQ
         // Propagate correlationId through message headers

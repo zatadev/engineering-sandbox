@@ -32,11 +32,13 @@ cache:
 # ─────────────────────────────────────────
 build:
   stage: build
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9.15-eclipse-temurin-21
   script:
     - mvn $MAVEN_CLI_OPTS clean package -DskipTests
   artifacts:
     paths:
+      - services/common/target/*.jar
+      - services/order-contracts/target/*.jar
       - services/user-service/target/*.jar
       - services/order-service/target/*.jar
       - services/notification-service/target/*.jar
@@ -51,7 +53,7 @@ build:
 # ─────────────────────────────────────────
 test:
   stage: test
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9.15-eclipse-temurin-21
   services:
     - docker:24-dind
   variables:
@@ -70,6 +72,8 @@ test:
         - services/order-service/target/failsafe-reports/IT-*.xml
         - services/notification-service/target/surefire-reports/TEST-*.xml
     paths:
+      - services/common/target/
+      - services/order-contracts/target/
       - services/user-service/target/
       - services/order-service/target/
       - services/notification-service/target/
@@ -84,7 +88,7 @@ test:
 # ─────────────────────────────────────────
 quality:
   stage: quality
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9.15-eclipse-temurin-21
   needs:
     - job: test
       artifacts: true

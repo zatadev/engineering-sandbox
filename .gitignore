@@ -10,7 +10,6 @@ build/
 *.log
 
 # Maven
-.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 

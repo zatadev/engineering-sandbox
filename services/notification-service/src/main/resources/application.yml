@@ -34,9 +34,9 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "com.zatadev.orderservice.messaging,com.zatadev.notificationservice.messaging"
+        spring.json.trusted.packages: "com.zatadev.order.contracts"
         spring.json.use.type.headers: false
-        spring.json.value.default.type: com.zatadev.notificationservice.messaging.OrderCreatedEvent
+        spring.json.value.default.type: com.zatadev.order.contracts.OrderCreatedEvent
 management:
   endpoints:
     web:

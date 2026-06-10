@@ -1,25 +1,28 @@
 # ============================================================
 # Stage 1 — Builder
 # ============================================================
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM maven:3.9.15-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /workspace
 
-COPY services/user-service/mvnw services/user-service/mvnw
-COPY services/user-service/.mvn services/user-service/.mvn
-RUN chmod +x services/user-service/mvnw
-
+# Install root POM (no recursive — just registers the parent)
 COPY pom.xml pom.xml
-RUN --mount=type=cache,target=/root/.m2 \
-    services/user-service/mvnw -f pom.xml install -N -B
+RUN mvn -f pom.xml install -N -B
 
+# Install common
+COPY services/common/pom.xml services/common/pom.xml
+COPY services/common/src services/common/src
+RUN mvn -f services/common/pom.xml install -DskipTests -B
+
+# Install order-contracts
+COPY services/order-contracts/pom.xml services/order-contracts/pom.xml
+COPY services/order-contracts/src services/order-contracts/src
+RUN mvn -f services/order-contracts/pom.xml install -DskipTests -B
+
+# Build order-service
 COPY services/order-service/pom.xml services/order-service/pom.xml
-RUN --mount=type=cache,target=/root/.m2 \
-    services/user-service/mvnw -f services/order-service/pom.xml dependency:go-offline -B
-
 COPY services/order-service/src services/order-service/src
-RUN --mount=type=cache,target=/root/.m2 \
-    services/user-service/mvnw -f services/order-service/pom.xml package -DskipTests -B
+RUN mvn -f services/order-service/pom.xml package -DskipTests -B
 
 # ============================================================
 # Stage 2 — Runtime
