@@ -47,24 +47,25 @@ clean commits, documented decisions, tested code, and observable systems.
 ```text
 engineering-sandbox/
 ├── services/
+│   ├── common/                # Phase 4 — shared infrastructure ✅
 │   ├── user-service/          # Phase 1 — core REST service ✅
-│   ├── order-service/         # Phase 4 — event producer
-│   └── notification-service/  # Phase 4 — event consumer
+│   ├── order-service/         # Phase 4 — event producer ✅
+│   └── notification-service/  # Phase 4 — event consumer ✅
 ├── infrastructure/
 │   ├── docker/                # Dockerfiles
 │   ├── docker-compose/        # Phase 2 — local environment ✅
 │   ├── kubernetes/            # Phase 6 — K8s manifests
 │   └── terraform/             # Phase 7 — IaC
 ├── messaging/
-│   ├── rabbitmq/              # Phase 4
-│   └── kafka/                 # Phase 4
+│   ├── rabbitmq/              # Phase 4 ✅
+│   └── kafka/                 # Phase 4 ✅
 ├── observability/
 │   ├── prometheus/            # Phase 5
 │   ├── grafana/               # Phase 5
 │   ├── otel/                  # Phase 5 — OpenTelemetry
 │   └── loki/                  # Phase 5 — log aggregation
 ├── ci-cd/
-│   └── gitlab-ci/             # Phase 3
+│   └── gitlab-ci/             # Phase 3 ✅
 └── docs/
     ├── adr/                   # Architecture Decision Records
     ├── postman/               # Postman collections per service
@@ -92,7 +93,7 @@ cp infrastructure/docker-compose/.env.example \
    infrastructure/docker-compose/.env
 # Edit .env with your local values
 
-# 3. Start the stack
+# 3. Start the full stack
 docker compose -f infrastructure/docker-compose/docker-compose.yml up --build
 ```
 
@@ -100,22 +101,27 @@ docker compose -f infrastructure/docker-compose/docker-compose.yml up --build
 
 ```bash
 docker ps
-# Should show: sandbox-user-service, sandbox-postgres, sandbox-redis (all healthy)
+# Should show all services as healthy
 ```
 
-Then hit the health endpoint:
+Then hit the health endpoints:
 ```bash
-curl http://localhost:8080/actuator/health
-# {"status":"UP"}
+curl http://localhost:8080/actuator/health  # user-service
+curl http://localhost:8081/actuator/health  # order-service
+curl http://localhost:8082/actuator/health  # notification-service
 ```
 
 ### Services
 
-| Service      | URL                         | Notes               |
-|--------------|-----------------------------|---------------------|
-| user-service | http://localhost:8080        | REST API            |
-| postgres     | localhost:5432 (db: userdb) | Credentials in .env |
-| redis        | localhost:6379              | No auth (local dev) |
+| Service              | URL                    | Notes                        |
+|----------------------|------------------------|------------------------------|
+| user-service         | http://localhost:8080  | REST API                     |
+| order-service        | http://localhost:8081  | REST API + event producer    |
+| notification-service | http://localhost:8082  | Event consumer (stateless)   |
+| postgres             | localhost:5432         | userdb + orderdb             |
+| redis                | localhost:6379         | Caching + idempotency store  |
+| rabbitmq             | http://localhost:15672 | Management UI (guest/guest)  |
+| kafka                | localhost:9092         | KRaft mode, no Zookeeper     |
 
 ### Logs
 
@@ -124,12 +130,12 @@ curl http://localhost:8080/actuator/health
 docker compose -f infrastructure/docker-compose/docker-compose.yml logs -f
 
 # Single service
-docker compose -f infrastructure/docker-compose/docker-compose.yml logs -f user-service
+docker compose -f infrastructure/docker-compose/docker-compose.yml logs -f order-service
 ```
 
 ### Metrics
 
-Spring Actuator endpoints available at:
+Spring Actuator endpoints available on each service:
 
 | Endpoint               | Description       |
 |------------------------|-------------------|
@@ -153,7 +159,7 @@ for advanced usage: resetting the database, inspecting the Redis cache, troubles
 | 1     | Java Service (user-service)  | ✅ Complete     |
 | 2     | Docker Compose + Redis       | ✅ Complete     |
 | 3     | GitLab CI/CD                 | ✅ Complete     |
-| 4     | Messaging (RabbitMQ + Kafka) | 🔧 In Progress  |
+| 4     | Messaging (RabbitMQ + Kafka) | ✅ Complete     |
 | 5     | Observability                | ⬜ Pending      |
 | 6     | Kubernetes                   | ⬜ Pending      |
 | 7     | Terraform & AWS              | ⬜ Pending      |
@@ -174,13 +180,39 @@ Production-grade REST service built with Spring Boot 3.5 / Java 21.
 - Structured JSON logging with correlation IDs
 - Unit tests (JUnit 5 + Mockito) and integration tests (Testcontainers)
 - Multi-stage Dockerfile (JDK builder → JRE runtime, non-root user)
-- Postman collection with 25 automated tests
-
-> **Note:** The recommended way to run the full stack is via Docker Compose.
-> See the [Running Locally](#running-locally) section above.
+- Postman collection with automated tests
 
 See [`docs/runbooks/user-service-local.md`](./docs/runbooks/user-service-local.md)
 for the standalone `docker run` approach (Phase 1 reference).
+
+---
+
+## Phase 4 — Messaging (order-service + notification-service)
+
+Event-driven architecture with RabbitMQ and Kafka running in parallel.
+
+**What's included:**
+
+**order-service** (port 8081):
+- REST CRUD API: `GET /api/v1/orders`, `POST`, `DELETE /{id}`
+- PostgreSQL + Flyway migrations (UUID primary keys)
+- Publishes `OrderCreatedEvent` to RabbitMQ (`sandbox.orders` TopicExchange)
+- Publishes `OrderCreatedEvent` to Kafka (`order.created` topic, 3 partitions)
+- Correlation ID injected into AMQP and Kafka record headers
+
+**notification-service** (port 8082):
+- Stateless — no database
+- Consumes `OrderCreatedEvent` from RabbitMQ and Kafka in parallel
+- Idempotent consumer via Redis SETNX (24h TTL) — protects against duplicates across both brokers
+- Correlation ID extracted from message headers and injected into MDC
+- Dead-letter queue with retry (3 attempts, exponential backoff: 1s → 2s → 4s)
+- DLQ message count exposed as Micrometer gauge (`rabbitmq.dlq.messages.ready`)
+
+**services/common**:
+- Shared infrastructure module: `CorrelationIdFilter`, `MetricsConfig`, `ErrorType`
+- `BaseGlobalExceptionHandler` — base exception handling via Spring auto-configuration
+- `OrderCreatedEvent` — shared messaging DTO
+- Unified `logback-spring.xml` with correlation ID in all log patterns
 
 ---
 
@@ -199,6 +231,8 @@ All significant technical decisions are documented as ADRs in [`/docs/adr/`](./d
 | ADR-007 | Keycloak as identity provider                   |
 | ADR-008 | DTO separation and error handling strategy      |
 | ADR-009 | Secrets management strategy                     |
+| ADR-010 | CI/CD strategy and pipeline design              |
+| ADR-011 | RabbitMQ vs Kafka — when to use which           |
 
 ---
 
