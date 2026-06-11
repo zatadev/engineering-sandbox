@@ -7,6 +7,8 @@ spring:
     show-sql: false
   flyway:
     enabled: true
+  cache:
+    type: simple
 
 security:
   jwt:
