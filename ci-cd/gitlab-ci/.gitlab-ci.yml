@@ -12,8 +12,6 @@ stages:
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=${CI_PROJECT_DIR}/.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode --no-transfer-progress"
-  DOCKER_HOST: "tcp://docker:2375"
-  DOCKER_TLS_CERTDIR: ""
   SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
 
 # ─────────────────────────────────────────
@@ -25,13 +23,9 @@ variables:
 .test-base:
   image: maven:3.9.15-eclipse-temurin-21
   stage: test
-  services:
-    - docker:24-dind
   variables:
-    # Ryuk (daemon de cleanup Testcontainers) est désactivé
-    # en CI : il nécessite un accès privilégié au socket
-    # Docker non disponible sur les runners GitLab standard.
     TESTCONTAINERS_RYUK_DISABLED: "true"
+    TESTCONTAINERS_HOST_OVERRIDE: "host.docker.internal"
     GIT_DEPTH: "1"
   cache:
     key:
@@ -101,10 +95,9 @@ test:notification-service:
 quality:
   stage: quality
   image: maven:3.9.15-eclipse-temurin-21
-  services:
-    - docker:24-dind
   variables:
     TESTCONTAINERS_RYUK_DISABLED: "true"
+    TESTCONTAINERS_HOST_OVERRIDE: "host.docker.internal"
     GIT_DEPTH: "0"
   cache:
     key: "${CI_JOB_NAME}"
@@ -127,8 +120,6 @@ quality:
 docker:
   stage: docker
   image: docker:24
-  services:
-    - docker:24-dind
   variables:
     IMAGE_NAME: "$CI_REGISTRY_IMAGE/user-service"
     GIT_DEPTH: "1"
