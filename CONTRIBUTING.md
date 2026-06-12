@@ -159,6 +159,30 @@ PR merge strategy:
 - Tests must pass locally before pushing
 - Aim for meaningful coverage — test behavior, not implementation
 
+#### Running tests
+
+Unit tests only (fast, no containers):
+```bash
+mvn test -Dtest="*Test" -pl services/user-service
+mvn test -Dtest="*Test" -pl services/order-service -am -Dsurefire.failIfNoSpecifiedTests=false
+mvn test -Dtest="*Test" -pl services/notification-service -am -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+Integration tests only:
+```bash
+mvn test -Dtest="*IntegrationTest" -pl services/user-service
+mvn test -Dtest="*IntegrationTest" -pl services/order-service -am -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+#### Testcontainers reuse (local dev only)
+
+To avoid restarting containers between test runs, add to `~/.testcontainers.properties`:
+```properties
+testcontainers.reuse.enable=true
+```
+
+This is a **local developer setting** - never commit it, never enable it in CI.
+Containers are identified by a hash of their configuration and reused across runs.
 ### Configuration
 
 - No hardcoded credentials or secrets anywhere in the codebase

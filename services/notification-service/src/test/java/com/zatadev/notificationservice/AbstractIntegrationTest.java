@@ -17,11 +17,13 @@ public abstract class AbstractIntegrationTest {
     static final GenericContainer<?> redis;
 
     static {
-        rabbitmq = new RabbitMQContainer("rabbitmq:3.13-alpine");
+        rabbitmq = new RabbitMQContainer("rabbitmq:3.13-alpine")
+                .withReuse(true);
         rabbitmq.start();
 
         redis = new GenericContainer<>("redis:7-alpine")
-                .withExposedPorts(6379);
+                .withExposedPorts(6379)
+                .withReuse(true);
         redis.start();
     }
 

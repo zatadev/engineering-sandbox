@@ -21,10 +21,12 @@ public abstract class AbstractIntegrationTest {
         postgres = new PostgreSQLContainer<>("postgres:16-alpine")
                 .withDatabaseName("orderdb_test")
                 .withUsername("test")
-                .withPassword("test");
+                .withPassword("test")
+                .withReuse(true);
         postgres.start();
 
-        rabbitmq = new RabbitMQContainer("rabbitmq:3.13-alpine");
+        rabbitmq = new RabbitMQContainer("rabbitmq:3.13-alpine")
+                .withReuse(true);
         rabbitmq.start();
     }
 
