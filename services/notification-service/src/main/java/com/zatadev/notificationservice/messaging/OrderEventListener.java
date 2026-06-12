@@ -2,6 +2,7 @@ package com.zatadev.notificationservice.messaging;
 
 import com.zatadev.order.contracts.OrderCreatedEvent;
 import com.zatadev.notificationservice.config.RabbitMQConfig;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -15,6 +16,7 @@ import org.slf4j.MDC;
 public class OrderEventListener {
 
     private final IdempotencyService idempotencyService;
+    private final MeterRegistry meterRegistry;
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE_NOTIFICATION_ORDER_CREATED)
     public void handleOrderCreated(OrderCreatedEvent event, Message message) {
@@ -23,15 +25,16 @@ public class OrderEventListener {
 
         try {
             log.info("Received OrderCreatedEvent: eventId={}, orderId={}, customerId={}",
-                    event.eventId(),
-                    event.orderId(),
-                    event.customerId());
+                    event.eventId(), event.orderId(), event.customerId());
 
             if (idempotencyService.isDuplicate(event.eventId())) {
+                meterRegistry.counter("notifications.idempotency.skipped", "source", "rabbitmq").increment();
                 return;
             }
 
             sendNotification(event);
+            meterRegistry.counter("notifications.sent", "source", "rabbitmq").increment();
+
         } finally {
             MDC.remove("correlationId");
         }

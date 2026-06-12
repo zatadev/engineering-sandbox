@@ -1,6 +1,7 @@
 package com.zatadev.notificationservice.messaging;
 
 import com.zatadev.order.contracts.OrderCreatedEvent;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class KafkaOrderEventListener {
 
     private final IdempotencyService idempotencyService;
+    private final MeterRegistry meterRegistry;
 
     @KafkaListener(
             topics = "order.created",
@@ -26,30 +28,26 @@ public class KafkaOrderEventListener {
             Acknowledgment ack) {
 
         OrderCreatedEvent event = record.value();
-
-        // Inject correlationId from Kafka header if present
         String correlationId = extractCorrelationId(record);
         MDC.put("correlationId", correlationId);
 
         try {
             log.info("Received Kafka OrderCreatedEvent: eventId={}, orderId={}, partition={}, offset={}",
-                    event.eventId(),
-                    event.orderId(),
-                    record.partition(),
-                    record.offset());
+                    event.eventId(), event.orderId(), record.partition(), record.offset());
 
             if (idempotencyService.isDuplicate(event.eventId())) {
+                meterRegistry.counter("notifications.idempotency.skipped", "source", "kafka").increment();
                 ack.acknowledge();
                 return;
             }
 
             sendNotification(event);
+            meterRegistry.counter("notifications.sent", "source", "kafka").increment();
             ack.acknowledge();
 
         } catch (Exception ex) {
             log.error("Failed to process Kafka OrderCreatedEvent: eventId={}, error={}",
                     event.eventId(), ex.getMessage());
-            // Ne pas ack → Kafka relivrera le message
         } finally {
             MDC.remove("correlationId");
         }

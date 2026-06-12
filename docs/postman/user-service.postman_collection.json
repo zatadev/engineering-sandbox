@@ -598,7 +598,7 @@
                   "    pm.expect(pm.response.text()).to.include('jvm_memory_used_bytes');",
                   "});",
                   "pm.test('Response contains custom user metrics', () => {",
-                  "    pm.expect(pm.response.text()).to.include('users_registrations_total');",
+                  "    pm.expect(pm.response.text()).to.include('users_registered_total');",
                   "});;"
                 ],
                 "type": "text/javascript",

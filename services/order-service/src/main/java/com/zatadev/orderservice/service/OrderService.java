@@ -52,7 +52,7 @@ public class OrderService {
     }
 
     @Timed(value = "order.service.create", description = "Order creation")
-    @Counted(value = "order.service.registrations", description = "Orders created")
+    @Counted(value = "orders.registered", description = "Total number of orders registered")
     @Transactional
     public OrderResponse create(CreateOrderRequest request) {
         log.info("Creating order for customerId={}, productId={}", request.customerId(), request.productId());
