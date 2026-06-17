@@ -7,7 +7,7 @@ import com.zatadev.orderservice.domain.dto.OrderResponse;
 import com.zatadev.orderservice.domain.entity.Order;
 import com.zatadev.orderservice.domain.entity.OrderStatus;
 import com.zatadev.orderservice.exception.OrderCancellationException;
-import com.zatadev.orderservice.exception.ResourceNotFoundException;
+import com.zatadev.common.exception.ResourceNotFoundException;
 import com.zatadev.order.contracts.OrderCreatedEvent;
 import com.zatadev.orderservice.messaging.KafkaOrderEventPublisher;
 import com.zatadev.orderservice.repository.OrderRepository;

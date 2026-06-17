@@ -141,9 +141,64 @@ are logged server-side but never sent to the client (security and clarity).
 
 ---
 
+---
+
+## Decision 4: Shared `common` Module for Cross-cutting Infrastructure
+
+**Date:** 2026-06-17
+**Status:** Accepted
+
+### Decision
+
+Cross-cutting infrastructure components are extracted to `services/common` and shared
+across all services via Spring Boot auto-configuration. Each service declares `common`
+as a Maven dependency; no service re-declares these components locally.
+
+### What is shared via `common`
+
+| Component | Mechanism |
+|---|---|
+| `CorrelationIdFilter` | Registered as `@Bean` by `CommonAutoConfiguration` |
+| `MetricsConfig` | Imported via `@Import` in `CommonAutoConfiguration` |
+| `ResourceNotFoundException` | Plain library class, used directly |
+| `BaseGlobalExceptionHandler` | Extended by each service's `GlobalExceptionHandler` |
+| `logback-spring.xml` | Classpath resource, loaded by Spring Boot's Logback integration |
+
+### What stays per service (intentional)
+
+| Component | Reason |
+|---|---|
+| `ErrorType` enum | Domain-specific entries (`CONFLICT`, `ORDER_CANCELLATION`) differ per service |
+| `GlobalExceptionHandler` concrete class | Extends the base and adds service-specific exception mappings |
+
+### Inheritance pattern
+
+```java
+// common
+@RestControllerAdvice
+public class BaseGlobalExceptionHandler {
+    // handles ResourceNotFoundException, MethodArgumentNotValidException, Exception
+}
+
+// per service
+@RestControllerAdvice
+public class GlobalExceptionHandler extends BaseGlobalExceptionHandler {
+    // handles only service-specific exceptions (ConflictException, OrderCancellationException)
+}
+```
+
+### Rationale
+
+Sharing `ErrorType` would require a common superset of all service error codes, coupling
+unrelated services. Keeping `ErrorType` local preserves domain boundaries. The base
+handler covers the universal cases (404, 400, 500); each service extends it for its own
+domain exceptions only.
+
+---
+
 ## References
 
 - [RFC 7807 — Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc7807)
 - Spring `@RestControllerAdvice` documentation
-- `GlobalExceptionHandler.java` — `services/user-service/src/main/java/com/zatadev/userservice/exception/`
-- `ErrorResponse.java` — same package
+- `BaseGlobalExceptionHandler.java` — `services/common/src/main/java/com/zatadev/common/exception/`
+- `GlobalExceptionHandler.java` — `<service>/src/main/java/com/zatadev/<service>/exception/`

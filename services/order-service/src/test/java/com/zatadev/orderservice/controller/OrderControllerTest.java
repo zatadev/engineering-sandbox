@@ -4,7 +4,7 @@ import com.zatadev.orderservice.config.JwtService;
 import com.zatadev.orderservice.domain.dto.OrderResponse;
 import com.zatadev.orderservice.domain.entity.OrderStatus;
 import com.zatadev.orderservice.exception.GlobalExceptionHandler;
-import com.zatadev.orderservice.exception.ResourceNotFoundException;
+import com.zatadev.common.exception.ResourceNotFoundException;
 import com.zatadev.orderservice.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

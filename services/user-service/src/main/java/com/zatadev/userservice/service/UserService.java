@@ -6,7 +6,7 @@ import com.zatadev.userservice.domain.dto.UpdateUserRequest;
 import com.zatadev.userservice.domain.dto.UserResponse;
 import com.zatadev.userservice.domain.entity.User;
 import com.zatadev.userservice.exception.ConflictException;
-import com.zatadev.userservice.exception.ResourceNotFoundException;
+import com.zatadev.common.exception.ResourceNotFoundException;
 import com.zatadev.userservice.repository.UserRepository;
 import io.micrometer.core.annotation.Counted;
 import lombok.RequiredArgsConstructor;

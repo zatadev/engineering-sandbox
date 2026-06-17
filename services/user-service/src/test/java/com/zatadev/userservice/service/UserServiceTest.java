@@ -4,7 +4,7 @@ import com.zatadev.userservice.domain.dto.CreateUserRequest;
 import com.zatadev.userservice.domain.dto.UserResponse;
 import com.zatadev.userservice.domain.entity.User;
 import com.zatadev.userservice.exception.ConflictException;
-import com.zatadev.userservice.exception.ResourceNotFoundException;
+import com.zatadev.common.exception.ResourceNotFoundException;
 import com.zatadev.userservice.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

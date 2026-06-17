@@ -103,11 +103,16 @@
             <artifactId>micrometer-tracing</artifactId>
         </dependency>
 
-        <!-- ===== Order contracts ===== -->
+        <!-- ===== Internal modules ===== -->
         <dependency>
             <groupId>com.zatadev</groupId>
             <artifactId>order-contracts</artifactId>
             <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.zatadev</groupId>
+            <artifactId>common</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- ===== Messaging ===== -->
