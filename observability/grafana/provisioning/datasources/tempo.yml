@@ -9,6 +9,11 @@ datasources:
     isDefault: false
     editable: false
     jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        filterByTraceID: true
+        filterBySpanID: false
+        customQuery: false
       serviceMap:
         datasourceUid: prometheus
       nodeGraph:
