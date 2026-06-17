@@ -17,6 +17,7 @@ spring:
     password: ${RABBITMQ_PASSWORD:guest}
     listener:
       simple:
+        observation-enabled: true
         acknowledge-mode: auto
         retry:
           enabled: true
@@ -58,6 +59,12 @@ management:
       enabled: true
     git:
       mode: simple
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 info:
   app:
