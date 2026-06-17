@@ -8,6 +8,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -26,6 +27,8 @@ public abstract class AbstractIntegrationTest {
         postgres.start();
 
         rabbitmq = new RabbitMQContainer("rabbitmq:3.13-alpine")
+                .waitingFor(Wait.forLogMessage(".*Ready to start client connection listeners.*", 1))
+                .withStartupTimeout(java.time.Duration.ofSeconds(120))
                 .withReuse(true);
         rabbitmq.start();
     }
