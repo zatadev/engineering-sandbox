@@ -22,23 +22,23 @@ clean commits, documented decisions, tested code, and observable systems.
 
 ## Stack
 
-| Domain         | Technology                                      |
-|----------------|-------------------------------------------------|
-| Language       | Java 21                                         |
-| Framework      | Spring Boot 3.5.x                               |
-| Build          | Maven (multi-module monorepo)                   |
-| Database       | PostgreSQL + JPA/Hibernate + Flyway             |
-| Cache          | Redis                                           |
-| Security       | Spring Security, OAuth2/OIDC, JWT, Keycloak     |
-| Messaging      | RabbitMQ, Kafka                                 |
-| Containers     | Docker, Docker Compose                          |
-| Orchestration  | Kubernetes (minikube / kind)                    |
-| CI/CD          | GitLab CI/CD                                    |
-| Testing        | JUnit 5, Mockito, Testcontainers                |
-| Observability  | Prometheus, Grafana, OpenTelemetry, Loki        |
-| IaC            | Terraform                                       |
-| Cloud          | AWS (ECS, EKS, RDS, S3, IAM, VPC)              |
-| Secret Mgmt    | HashiCorp Vault                                 |
+| Domain         | Technology                                           |
+|----------------|------------------------------------------------------|
+| Language       | Java 21                                              |
+| Framework      | Spring Boot 3.5.x                                    |
+| Build          | Maven (multi-module monorepo)                        |
+| Database       | PostgreSQL + JPA/Hibernate + Flyway                  |
+| Cache          | Redis                                                |
+| Security       | Spring Security, OAuth2/OIDC, JWT, Keycloak          |
+| Messaging      | RabbitMQ, Kafka                                      |
+| Containers     | Docker, Docker Compose                               |
+| Orchestration  | Kubernetes (minikube / kind)                         |
+| CI/CD          | GitLab CI/CD                                         |
+| Testing        | JUnit 5, Mockito, Testcontainers                     |
+| Observability  | Prometheus, Grafana, OpenTelemetry, Loki, Tempo      |
+| IaC            | Terraform                                            |
+| Cloud          | AWS (ECS, EKS, RDS, S3, IAM, VPC)                   |
+| Secret Mgmt    | HashiCorp Vault                                      |
 
 ---
 
@@ -60,10 +60,10 @@ engineering-sandbox/
 │   ├── rabbitmq/              # Phase 4 ✅
 │   └── kafka/                 # Phase 4 ✅
 ├── observability/
-│   ├── prometheus/            # Phase 5
-│   ├── grafana/               # Phase 5
-│   ├── otel/                  # Phase 5 — OpenTelemetry
-│   └── loki/                  # Phase 5 — log aggregation
+│   ├── prometheus/            # Phase 5 ✅ — scraping + alert rules
+│   ├── grafana/               # Phase 5 ✅ — dashboards + alerting
+│   ├── otel/                  # Phase 5 ✅ — Tempo config
+│   └── loki/                  # Phase 5 ✅ — log aggregation
 ├── ci-cd/
 │   └── gitlab-ci/             # Phase 3 ✅
 └── docs/
@@ -122,6 +122,10 @@ curl http://localhost:8082/actuator/health  # notification-service
 | redis                | localhost:6379         | Caching + idempotency store  |
 | rabbitmq             | http://localhost:15672 | Management UI (guest/guest)  |
 | kafka                | localhost:9092         | KRaft mode, no Zookeeper     |
+| prometheus           | http://localhost:9090  | Metrics + alert rules        |
+| grafana              | http://localhost:3000  | Dashboards + alerting (admin/admin) |
+| loki                 | http://localhost:3100  | Log aggregation              |
+| tempo                | http://localhost:3200  | Distributed traces           |
 
 ### Logs
 
@@ -133,7 +137,7 @@ docker compose -f infrastructure/docker-compose/docker-compose.yml logs -f
 docker compose -f infrastructure/docker-compose/docker-compose.yml logs -f order-service
 ```
 
-### Metrics
+### Metrics & Observability
 
 Spring Actuator endpoints available on each service:
 
@@ -144,10 +148,18 @@ Spring Actuator endpoints available on each service:
 | `/actuator/metrics`    | Raw metrics       |
 | `/actuator/prometheus` | Prometheus scrape |
 
+Grafana dashboards available at `http://localhost:3000`:
+- **JVM Metrics** — heap, GC, threads per service
+- **HTTP Metrics** — request rate, error rate, latency p50/p95/p99
+- **Business Metrics** — orders created, notifications sent, DLQ depth
+- **Log Explorer** — structured logs with trace correlation
+
 ### Full runbook
 
 See [`docs/runbooks/docker-compose-local.md`](docs/runbooks/docker-compose-local.md)
 for advanced usage: resetting the database, inspecting the Redis cache, troubleshooting.
+
+For incident investigation, see [`docs/runbooks/incident-service-down.md`](docs/runbooks/incident-service-down.md).
 
 ---
 
@@ -160,8 +172,8 @@ for advanced usage: resetting the database, inspecting the Redis cache, troubles
 | 2     | Docker Compose + Redis       | ✅ Complete     |
 | 3     | GitLab CI/CD                 | ✅ Complete     |
 | 4     | Messaging (RabbitMQ + Kafka) | ✅ Complete     |
-| 5     | Observability                | ⬜ Pending      |
-| 6     | Kubernetes                   | ⬜ Pending      |
+| 5     | Observability                | ✅ Complete     |
+| 6     | Kubernetes                   | ⬜ In progress  |
 | 7     | Terraform & AWS              | ⬜ Pending      |
 | 8     | Security & Final Polish      | ⬜ Pending      |
 
@@ -203,16 +215,46 @@ Event-driven architecture with RabbitMQ and Kafka running in parallel.
 **notification-service** (port 8082):
 - Stateless — no database
 - Consumes `OrderCreatedEvent` from RabbitMQ and Kafka in parallel
-- Idempotent consumer via Redis SETNX (24h TTL) — protects against duplicates across both brokers
-- Correlation ID extracted from message headers and injected into MDC
+- Idempotent consumer via Redis SETNX (24h TTL)
 - Dead-letter queue with retry (3 attempts, exponential backoff: 1s → 2s → 4s)
-- DLQ message count exposed as Micrometer gauge (`rabbitmq.dlq.messages.ready`)
+- DLQ message count exposed as Micrometer gauge
 
 **services/common**:
-- Shared infrastructure module: `CorrelationIdFilter`, `MetricsConfig`, `ErrorType`
-- `BaseGlobalExceptionHandler` — base exception handling via Spring auto-configuration
-- `OrderCreatedEvent` — shared messaging DTO
-- Unified `logback-spring.xml` with correlation ID in all log patterns
+- Shared infrastructure module auto-configured via Spring Boot
+- `CorrelationIdFilter`, `MetricsConfig`, `BaseGlobalExceptionHandler`
+- `OrderCreatedEvent` shared DTO, unified `logback-spring.xml`
+
+---
+
+## Phase 5 — Observability (LGTM Stack)
+
+Full observability stack: metrics, logs, traces, and alerting.
+
+**Metrics — Prometheus + Micrometer**
+- Prometheus scrapes all 3 services every 15s
+- Custom business counters: orders registered, notifications sent (by source: rabbitmq/kafka)
+- DLQ depth gauge, JVM heap, GC, thread metrics
+
+**Visualization — Grafana**
+- 4 dashboards: JVM Metrics, HTTP Metrics, Business Metrics, Log Explorer
+- Auto-provisioned datasources and dashboards — no manual configuration required
+- Alerting rules provisioned as code: ServiceDown, HighErrorRate, HighHeapMemory, DLQMessagesPresent
+- Webhook notifications with firing and resolved lifecycle
+
+**Distributed Tracing — OpenTelemetry + Tempo**
+- Micrometer Tracing bridge (OTel) — no Java agent required
+- End-to-end traces: HTTP → RabbitMQ publish → Kafka publish → consumers
+- One-click navigation from log line to trace (Loki derivedFields → Tempo)
+- Reverse navigation from trace span to logs (Tempo tracesToLogsV2 → Loki)
+
+**Log Aggregation — Loki + Promtail**
+- Promtail auto-discovers containers via Docker socket
+- Structured JSON logs with `traceId`, `spanId`, `correlationId` in every line
+- LogQL queries for error investigation by service and level
+
+**Documentation**
+- Incident runbook: [`docs/runbooks/incident-service-down.md`](docs/runbooks/incident-service-down.md)
+- ADR-012: Observability strategy
 
 ---
 
@@ -220,19 +262,20 @@ Event-driven architecture with RabbitMQ and Kafka running in parallel.
 
 All significant technical decisions are documented as ADRs in [`/docs/adr/`](./docs/adr/).
 
-| ADR     | Decision                                        |
-|---------|-------------------------------------------------|
-| ADR-001 | GitLab CI/CD over GitHub Actions                |
-| ADR-002 | Monorepo structure                              |
-| ADR-003 | Java 21 + Spring Boot 3                         |
-| ADR-004 | PostgreSQL as primary datastore                 |
-| ADR-005 | RabbitMQ before Kafka                           |
-| ADR-006 | Redis for caching                               |
-| ADR-007 | Keycloak as identity provider                   |
-| ADR-008 | DTO separation and error handling strategy      |
-| ADR-009 | Secrets management strategy                     |
-| ADR-010 | CI/CD strategy and pipeline design              |
-| ADR-011 | RabbitMQ vs Kafka — when to use which           |
+| ADR     | Decision                                             |
+|---------|------------------------------------------------------|
+| ADR-001 | GitLab CI/CD over GitHub Actions                     |
+| ADR-002 | Monorepo structure                                   |
+| ADR-003 | Java 21 + Spring Boot 3                              |
+| ADR-004 | PostgreSQL as primary datastore                      |
+| ADR-005 | RabbitMQ before Kafka                                |
+| ADR-006 | Redis for caching                                    |
+| ADR-007 | Keycloak as identity provider                        |
+| ADR-008 | DTO separation and error handling strategy           |
+| ADR-009 | Secrets management strategy                          |
+| ADR-010 | CI/CD strategy and pipeline design                   |
+| ADR-011 | RabbitMQ vs Kafka — when to use which                |
+| ADR-012 | Observability strategy — LGTM stack, OTel, correlation |
 
 ---
 
@@ -270,7 +313,7 @@ docs/*      → documentation only
 
 - Feature branches → `develop`: **Squash and merge** (one commit per PR)
 - `develop` → `main`: **Merge commit** at phase completion
-- Each phase is tagged: `v0.1.0`, `v0.2.0`, etc.
+- Each phase is tagged: `v0.1.0`, `v0.2.0`, ..., `v0.6.0`
 
 ---
 
