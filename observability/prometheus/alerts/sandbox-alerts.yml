@@ -1,0 +1,65 @@
+groups:
+  - name: sandbox.availability
+    interval: 30s
+    rules:
+
+      - alert: ServiceDown
+        expr: up{job=~"user-service|order-service|notification-service"} == 0
+        for: 1m # prevent fake positif on restart
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} (instance {{ $labels.instance }}) has been down for more than 1 minute."
+
+  - name: sandbox.http
+    interval: 30s
+    rules:
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{
+            job=~"user-service|order-service|notification-service",
+            status=~"5.."
+          }[5m])) by (job)
+          /
+          sum(rate(http_server_requests_seconds_count{
+            job=~"user-service|order-service|notification-service"
+          }[5m])) by (job)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "{{ $labels.job }} error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+  - name: sandbox.jvm
+    interval: 30s
+    rules:
+
+      - alert: HighHeapMemory
+        expr: |
+          sum(jvm_memory_used_bytes{area="heap", job=~"user-service|order-service|notification-service"}) by (job)
+          /
+          sum(jvm_memory_max_bytes{area="heap", job=~"user-service|order-service|notification-service"}) by (job)
+          > 0.80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High heap memory on {{ $labels.job }}"
+          description: "{{ $labels.job }} heap usage is {{ $value | humanizePercentage }} (threshold: 80%)."
+
+  - name: sandbox.messaging
+    interval: 30s
+    rules:
+
+      - alert: DLQMessagesPresent
+        expr: rabbitmq_dlq_messages_ready > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Messages in Dead Letter Queue"
+          description: "{{ $value }} message(s) in DLQ queue {{ $labels.queue }}. Requires manual inspection."

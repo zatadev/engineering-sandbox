@@ -1,0 +1,252 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: sandbox-webhook
+    receivers:
+      - uid: sandbox-webhook-receiver
+        type: webhook
+        settings:
+          url: https://webhook.site/f9bc9dab-f89e-4282-9a57-3c6b1bd0009c
+          httpMethod: POST
+
+groups:
+  - orgId: 1
+    name: sandbox-alerts
+    folder: Sandbox
+    interval: 1m
+    rules:
+
+      - uid: grafana-service-down
+        title: ServiceDown
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: up{job=~"user-service|order-service|notification-service"}
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    type: last
+              expression: B
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.instance }} has been unreachable for more than 1 minute"
+        labels:
+          severity: critical
+        isPaused: false
+        notification_settings:
+          receiver: sandbox-webhook
+
+      - uid: grafana-high-error-rate
+        title: HighErrorRate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: |
+                sum(rate(http_server_requests_seconds_count{job=~"user-service|order-service|notification-service",status=~"5.."}[5m])) by (job)
+                /
+                sum(rate(http_server_requests_seconds_count{job=~"user-service|order-service|notification-service"}[5m])) by (job)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.05]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    type: last
+              expression: B
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is above 5% for more than 5 minutes"
+        labels:
+          severity: warning
+        isPaused: false
+        notification_settings:
+          receiver: sandbox-webhook
+
+      - uid: grafana-high-heap-memory
+        title: HighHeapMemory
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: |
+                sum(jvm_memory_used_bytes{area="heap",job=~"user-service|order-service|notification-service"}) by (job)
+                /
+                sum(jvm_memory_max_bytes{area="heap",job=~"user-service|order-service|notification-service"}) by (job)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.80]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    type: last
+              expression: B
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "High heap memory on {{ $labels.job }}"
+          description: "Heap usage above 80% for more than 5 minutes"
+        labels:
+          severity: warning
+        isPaused: false
+        notification_settings:
+          receiver: sandbox-webhook
+
+      - uid: grafana-dlq-messages
+        title: DLQMessagesPresent
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: rabbitmq_dlq_messages_ready
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [C]
+                  reducer:
+                    type: last
+              expression: B
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Error
+        for: 0m
+        annotations:
+          summary: "Messages in Dead Letter Queue"
+          description: "{{ $value }} message(s) waiting in DLQ"
+        labels:
+          severity: warning
+        isPaused: false
+        notification_settings:
+          receiver: sandbox-webhook
