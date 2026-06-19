@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────
-# Stages — ordre d'exécution du pipeline
+# Stages - ordre d'exécution du pipeline
 # ─────────────────────────────────────────
 stages:
   - test
@@ -16,9 +16,8 @@ variables:
 
 # ─────────────────────────────────────────
 # Template partagé pour les jobs de test
-# Cache keyed sur le contenu des pom.xml
-# partagé entre toutes les branches qui ont
-# les mêmes dépendances.
+# Ne tourne pas sur les feature branches -
+# uniquement sur MR, develop et main.
 # ─────────────────────────────────────────
 .test-base:
   image: maven:3.9.15-eclipse-temurin-21
@@ -38,12 +37,54 @@ variables:
       - .m2/repository/
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
 
 # ─────────────────────────────────────────
-# Stage : test — 3 jobs parallèles
-# Chaque service construit uniquement ses
-# modules upstream (-am) puis lance verify.
+# Template partagé pour les jobs docker
+# Le script est défini ici une seule fois.
+# Chaque job surcharge IMAGE_NAME et DOCKERFILE
+# via variables: - pattern standard GitLab CI.
+# ─────────────────────────────────────────
+.docker-base:
+  stage: docker
+  image: docker:24
+  variables:
+    GIT_DEPTH: "1"
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+        TAG="${CI_COMMIT_TAG:-latest}"
+        VERSION="${CI_COMMIT_TAG:-0.0.0}"
+      elif [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+        TAG="develop-${CI_COMMIT_SHORT_SHA}"
+        VERSION="0.0.0-develop-${CI_COMMIT_SHORT_SHA}"
+      else
+        TAG="mr-${CI_COMMIT_SHORT_SHA}"
+        VERSION="0.0.0-mr-${CI_COMMIT_SHORT_SHA}"
+      fi
+    - docker build
+      --build-arg APP_VERSION="$VERSION"
+      -t "$IMAGE_NAME:$TAG"
+      -f "$DOCKERFILE" .
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+        docker push "$IMAGE_NAME:$TAG"
+      fi
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+        docker tag "$IMAGE_NAME:$TAG" "$IMAGE_NAME:latest"
+        docker push "$IMAGE_NAME:latest"
+      fi
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+
+# ─────────────────────────────────────────
+# Stage : test - 3 jobs parallèles
 # ─────────────────────────────────────────
 test:user-service:
   extends: .test-base
@@ -87,11 +128,9 @@ test:notification-service:
     expire_in: 1 week
 
 # ─────────────────────────────────────────
-# Stage : quality — SonarCloud
-# Tourne en autonome et relance verify pour avoir les
-# rapports JaCoCo complets : les jobs test compilent
-# chacun un seul module (-pl), SonarCloud a besoin
-# d'analyser tous les modules en une passe.
+# Stage : quality - SonarCloud
+# Tourne uniquement sur main et develop -
+# trop lent (~9min) pour tourner sur chaque MR.
 # GIT_DEPTH=0 requis pour SonarCloud
 # (blame + historique des branches).
 # ─────────────────────────────────────────
@@ -113,50 +152,32 @@ quality:
   script:
     - mvn $MAVEN_CLI_OPTS verify sonar:sonar
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == "main"'
     - if: '$CI_COMMIT_BRANCH == "develop"'
 
 # ─────────────────────────────────────────
-# Stage : docker
-# /!\ Build user-service uniquement pour l'instant.
-# À étendre avec un job par service quand order-service
-# et notification-service seront prêts au déploiement.
+# Stage : docker - 3 jobs parallèles
+# Basés sur .docker-base - seuls IMAGE_NAME
+# et DOCKERFILE varient par service.
+# Tags :
+#   main    → latest + <commit-tag>
+#   develop → develop-<sha>
+#   MR      → mr-<sha> (build only, no push)
 # ─────────────────────────────────────────
-docker:
-  stage: docker
-  image: docker:24
+docker:user-service:
+  extends: .docker-base
   variables:
     IMAGE_NAME: "$CI_REGISTRY_IMAGE/user-service"
-    GIT_DEPTH: "1"
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-  script:
-    - |
-      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
-        TAG="${CI_COMMIT_TAG:-latest}"
-        VERSION="${CI_COMMIT_TAG:-0.0.0}"
-      elif [ "$CI_COMMIT_BRANCH" = "develop" ]; then
-        TAG="develop-${CI_COMMIT_SHORT_SHA}"
-        VERSION="0.0.0-develop-${CI_COMMIT_SHORT_SHA}"
-      else
-        TAG="mr-${CI_COMMIT_SHORT_SHA}"
-        VERSION="0.0.0-mr-${CI_COMMIT_SHORT_SHA}"
-      fi
-    - docker build
-      --build-arg APP_VERSION="$VERSION"
-      -t "$IMAGE_NAME:$TAG"
-      -f services/user-service/Dockerfile .
-    - |
-      if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "develop" ]; then
-        docker push "$IMAGE_NAME:$TAG"
-      fi
-    - |
-      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
-        docker tag "$IMAGE_NAME:$TAG" "$IMAGE_NAME:latest"
-        docker push "$IMAGE_NAME:latest"
-      fi
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == "main"'
-    - if: '$CI_COMMIT_BRANCH == "develop"'
+    DOCKERFILE: "services/user-service/Dockerfile"
+
+docker:order-service:
+  extends: .docker-base
+  variables:
+    IMAGE_NAME: "$CI_REGISTRY_IMAGE/order-service"
+    DOCKERFILE: "services/order-service/Dockerfile"
+
+docker:notification-service:
+  extends: .docker-base
+  variables:
+    IMAGE_NAME: "$CI_REGISTRY_IMAGE/notification-service"
+    DOCKERFILE: "services/notification-service/Dockerfile"
