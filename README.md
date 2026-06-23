@@ -173,8 +173,8 @@ For incident investigation, see [`docs/runbooks/incident-service-down.md`](docs/
 | 3     | GitLab CI/CD                 | ✅ Complete     |
 | 4     | Messaging (RabbitMQ + Kafka) | ✅ Complete     |
 | 5     | Observability                | ✅ Complete     |
-| 6     | Kubernetes                   | ⬜ In progress  |
-| 7     | Terraform & AWS              | ⬜ Pending      |
+| 6     | Kubernetes                   | ✅ Complete     |
+| 7     | Terraform & AWS              | ⬜ In progress  |
 | 8     | Security & Final Polish      | ⬜ Pending      |
 
 ---
@@ -258,6 +258,38 @@ Full observability stack: metrics, logs, traces, and alerting.
 
 ---
 
+## Phase 6 — Kubernetes (user-service)
+
+Full Kubernetes deployment pattern, built on **user-service as the reference service**
+(replication to the other services tracked in ZAT-193).
+
+**Cluster**
+- kind, multi-node (1 control-plane + 2 workers) — kind vs minikube rationale in ADR-013
+- metrics-server vendored (patched for kind)
+
+**Workload**
+- Deployment (2 replicas) + ClusterIP Service + ConfigMap + Secret
+- Liveness / readiness / startup probes (Spring Boot Actuator)
+- Resource requests and limits (Burstable QoS)
+
+**Ingress — ingress-nginx**
+- Path routing: `/api/v1/users` → user-service
+- Controller pinned to the ingress-ready node (multi-node fix)
+- ingress-nginx retired (March 2026) → Gateway API migration planned (ZAT-190/191/192)
+
+**Autoscaling — HPA**
+- min 2 / max 5, target CPU 70%
+- Load-tested with `hey`: scale-up 2→5, graduated scale-down to 2
+
+**Deployment lifecycle**
+- Rolling update + rollback demonstrated (zero-downtime, readiness-gated)
+
+**Documentation**
+- ADR-013: Kubernetes strategy
+- Runbooks: `hpa-user-service`, `rolling-deployment-user-service`
+
+---
+
 ## Architectural Decisions
 
 All significant technical decisions are documented as ADRs in [`/docs/adr/`](./docs/adr/).
@@ -276,6 +308,7 @@ All significant technical decisions are documented as ADRs in [`/docs/adr/`](./d
 | ADR-010 | CI/CD strategy and pipeline design                   |
 | ADR-011 | RabbitMQ vs Kafka — when to use which                |
 | ADR-012 | Observability strategy — LGTM stack, OTel, correlation |
+| ADR-013 | Kubernetes strategy — kind, namespaces, config/secrets, resources |
 
 ---
 
@@ -313,7 +346,7 @@ docs/*      → documentation only
 
 - Feature branches → `develop`: **Squash and merge** (one commit per PR)
 - `develop` → `main`: **Merge commit** at phase completion
-- Each phase is tagged: `v0.1.0`, `v0.2.0`, ..., `v0.6.0`
+- Each phase is tagged: `v0.1.0`, `v0.2.0`, ..., `v0.7.0`
 
 ---
 
