@@ -99,6 +99,12 @@ spec:
               # subPath avoids PostgreSQL startup failure:
               # the official image refuses to start if the volume root is not empty.
               subPath: postgres
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init-scripts
   volumeClaimTemplates:
     - metadata:
         name: postgres-data
