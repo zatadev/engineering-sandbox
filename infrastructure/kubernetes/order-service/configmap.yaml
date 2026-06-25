@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-service-config
+  namespace: sandbox
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/component: backend
+data:
+  SPRING_PROFILES_ACTIVE: kubernetes
+  SERVER_PORT: "8081"
+  # PostgreSQL
+  DB_URL: jdbc:postgresql://postgres.sandbox-infra.svc.cluster.local:5432/orderdb
+  DB_USERNAME: sandbox
+  # RabbitMQ — not deployed on K8s yet (ZAT-193)
+  # Pods will start but messaging will be unavailable until RabbitMQ is deployed
+  RABBITMQ_HOST: rabbitmq.sandbox-infra.svc.cluster.local
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USER: guest
+  # Kafka — not deployed on K8s yet (ZAT-193)
+  KAFKA_BOOTSTRAP_SERVERS: kafka.sandbox-infra.svc.cluster.local:9092
+  # Actuator
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+  MANAGEMENT_ENDPOINT_HEALTH_GROUP_LIVENESS_INCLUDE: livenessState
+  MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE: readinessState,db
+  # Disable broker health indicators — Kafka and RabbitMQ not deployed on K8s yet
+  # Prevents /actuator/health from returning 503 while brokers are absent
+  MANAGEMENT_HEALTH_KAFKA_ENABLED: "false"
+  MANAGEMENT_HEALTH_RABBIT_ENABLED: "false"
+  # OpenTelemetry — Tempo not deployed on K8s
+  MANAGEMENT_TRACING_ENABLED: "false"
